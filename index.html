@@ -7383,6 +7383,7 @@ var $author$project$Loop2$pointCoords = _List_fromArray(
 var $author$project$Loop2$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
+			afterClick: 0,
 			eulerCycle: $author$project$Loop2$eulerCycle,
 			points: A2(
 				$elm$core$List$map,
@@ -7818,15 +7819,31 @@ var $author$project$Loop2$subscriptions = function (model) {
 var $elm$core$Basics$modBy = _Basics_modBy;
 var $author$project$Loop2$update = F2(
 	function (msg, model) {
-		var t = msg.a;
-		return _Utils_Tuple2(
-			_Utils_update(
-				model,
-				{
-					tourLength: A2($elm$core$Basics$modBy, 192, model.tourLength + 1)
-				}),
-			$elm$core$Platform$Cmd$none);
+		if (msg.$ === 'Elapsed') {
+			var t = msg.a;
+			return _Utils_Tuple2(
+				_Utils_update(
+					model,
+					{afterClick: model.afterClick + 1}),
+				$elm$core$Platform$Cmd$none);
+		} else {
+			return (model.afterClick < 2) ? _Utils_Tuple2(
+				_Utils_update(
+					model,
+					{
+						tourLength: A2($elm$core$Basics$modBy, 192, model.tourLength - 2)
+					}),
+				$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+				_Utils_update(
+					model,
+					{
+						afterClick: 0,
+						tourLength: A2($elm$core$Basics$modBy, 192, model.tourLength + 1)
+					}),
+				$elm$core$Platform$Cmd$none);
+		}
 	});
+var $author$project$Loop2$Forward = {$: 'Forward'};
 var $avh4$elm_color$Color$RgbaSpace = F4(
 	function (a, b, c, d) {
 		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
@@ -10599,6 +10616,7 @@ var $ianmackenzie$elm_geometry$Direction3d$from = F2(
 					{x: scaledX / scaledLength, y: scaledY / scaledLength, z: scaledZ / scaledLength}));
 		}
 	});
+var $elm$html$Html$h1 = _VirtualDom_node('h1');
 var $elm$core$List$head = function (list) {
 	if (list.b) {
 		var x = list.a;
@@ -10824,6 +10842,23 @@ var $ianmackenzie$elm_3d_scene$Scene3d$Material$nonmetal = function (_v0) {
 	var roughness = _v0.roughness;
 	return $ianmackenzie$elm_3d_scene$Scene3d$Material$pbr(
 		{baseColor: baseColor, metallic: 0, roughness: roughness});
+};
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$html$Html$Events$onClick = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
 };
 var $ianmackenzie$elm_3d_camera$Camera3d$Types$Camera3d = function (a) {
 	return {$: 'Camera3d', a: a};
@@ -12791,6 +12826,11 @@ var $author$project$Loop2$view = function (model) {
 					radius: $ianmackenzie$elm_units$Length$meters(0.05)
 				}));
 	};
+	var current = A2(
+		$elm$core$Maybe$withDefault,
+		{from: 0, to: 0},
+		$elm$core$List$head(
+			A2($elm$core$List$drop, model.tourLength, model.eulerCycle)));
 	var cover = function (edata) {
 		return A2(
 			$ianmackenzie$elm_3d_scene$Scene3d$cylinderWithShadow,
@@ -12828,7 +12868,7 @@ var $author$project$Loop2$view = function (model) {
 			verticalFieldOfView: $ianmackenzie$elm_units$Angle$degrees(30),
 			viewpoint: $ianmackenzie$elm_3d_camera$Viewpoint3d$lookAt(
 				{
-					eyePoint: A3($ianmackenzie$elm_geometry$Point3d$meters, 10, 10, 8),
+					eyePoint: A3($ianmackenzie$elm_geometry$Point3d$meters, 10, 12, 10),
 					focalPoint: $ianmackenzie$elm_geometry$Point3d$origin,
 					upDirection: $ianmackenzie$elm_geometry$Direction3d$positiveZ
 				})
@@ -12837,16 +12877,19 @@ var $author$project$Loop2$view = function (model) {
 		{baseColor: $avh4$elm_color$Color$black, roughness: 0.4});
 	return A2(
 		$elm$html$Html$div,
-		_List_Nil,
+		_List_fromArray(
+			[
+				$elm$html$Html$Events$onClick($author$project$Loop2$Forward)
+			]),
 		_List_fromArray(
 			[
 				A2(
-				$elm$html$Html$div,
+				$elm$html$Html$h1,
 				_List_Nil,
 				_List_fromArray(
 					[
 						$elm$html$Html$text(
-						$elm$core$String$fromInt(model.tourLength))
+						$elm$core$String$fromInt(model.tourLength) + (' ' + ($elm$core$String$fromInt(current.from) + ('-->' + $elm$core$String$fromInt(current.to)))))
 					])),
 				$ianmackenzie$elm_3d_scene$Scene3d$sunny(
 				{

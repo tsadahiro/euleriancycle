@@ -21,7 +21,6 @@ import Viewpoint3d
 import Time
 
 
-
 main = Browser.element {init = init
                        ,update = update
                        ,view = view
@@ -31,23 +30,32 @@ main = Browser.element {init = init
 type alias Model = {points: List {x:Float, y:Float, z:Float}
                    ,eulerCycle: List {from:Int, to:Int}
                    ,tourLength: Int
+                   ,afterClick: Int
                    }
 
-type Msg = Elapsed Time.Posix
+type Msg = Elapsed Time.Posix |
+    Forward
     
 init : () -> (Model, Cmd Msg)
 init _ =
     ({points = List.map (\p -> {x=3.0*p.x, y=3.0*p.y, z=3.0*p.z}) pointCoords
      ,eulerCycle = eulerCycle
      ,tourLength = 0
+     ,afterClick = 0
      }
     ,Cmd.none)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        Elapsed t ->
-            ({model | tourLength = modBy 192 (model.tourLength+1)}, Cmd.none)
+        Elapsed t -> --(model, Cmd.none)
+            --({model | tourLength = modBy 192 (model.tourLength+1)}, Cmd.none)
+                    ({model | afterClick = (model.afterClick+1)}, Cmd.none)
+        Forward ->
+            if (model.afterClick < 2) then
+                ({model | tourLength = modBy 192 (model.tourLength-2)}, Cmd.none)
+            else
+                ({model | tourLength = modBy 192 (model.tourLength+1), afterClick = 0}, Cmd.none)
 
 
 view: Model -> Html Msg
@@ -115,13 +123,14 @@ view model =
                 { viewpoint =
                     Viewpoint3d.lookAt
                         { focalPoint = Point3d.origin
-                        , eyePoint = Point3d.meters 10 10 8
+                        , eyePoint = Point3d.meters 10 12 10
                         , upDirection = Direction3d.positiveZ
                         }
                 , verticalFieldOfView = Angle.degrees 30
                 }
+        current = Maybe.withDefault {from=0,to=0} <| List.head (List.drop (model.tourLength) model.eulerCycle)
     in
-    Html.div[]
+    Html.div[Evts.onClick Forward]
         [
          {-Html.input
             [ Attrs.type_ "range"
@@ -130,7 +139,10 @@ view model =
             --, Attrs.value <| String.fromFloat model.angle2
             ]
             []-}
-        Html.div [] [Html.text (String.fromInt model.tourLength)]
+        Html.h1 [] [Html.text ((String.fromInt model.tourLength)++" "++
+                                    (String.fromInt current.from)++"-->"++
+                                    (String.fromInt current.to)
+                               )]
         ,Scene3d.sunny
              { camera = camera
              , clipDepth = Length.meters 0.05
