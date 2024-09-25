@@ -19,6 +19,8 @@ import Axis3d
 import Scene3d.Material as Material
 import Viewpoint3d
 import Time
+import Html.Events.Extra.Pointer as Pointer
+import Html.Events.Extra.Mouse as Mouse
 
 
 main = Browser.element {init = init
@@ -27,35 +29,92 @@ main = Browser.element {init = init
                        ,subscriptions = subscriptions
                        }
        
-type alias Model = {points: List {x:Float, y:Float, z:Float}
-                   ,eulerCycle: List {from:Int, to:Int}
-                   ,tourLength: Int
-                   ,afterClick: Int
+type alias Model = {points: List (Point3d.Point3d Length.Meters WorldCoordinates)
+                        --points: List {x:Float, y:Float, z:Float}                        
+                   , eulerCycle: List {from:Int, to:Int}
+                   , tourLength: Int
+                   , start : Maybe {x:Float, y:Float}
                    }
 
-type Msg = Elapsed Time.Posix |
-    Forward
+type Msg = Elapsed Time.Posix 
+    | RStart {x: Float, y: Float}
+    | RMove {x: Float, y: Float}
+    | REnd {x: Float, y: Float}
+    | Forward
+    | Backward
+
+type WorldCoordinates = WorldCoordinates
     
 init : () -> (Model, Cmd Msg)
 init _ =
-    ({points = List.map (\p -> {x=3.0*p.x, y=3.0*p.y, z=3.0*p.z}) pointCoords
+    ({points = List.map (\p -> (Point3d.meters (3.0*p.x) (3.0*p.y) (3.0*p.z))) pointCoords
      ,eulerCycle = eulerCycle
      ,tourLength = 0
-     ,afterClick = 0
+     , start = Nothing
      }
     ,Cmd.none)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
+        RStart pos ->
+            let
+                dummy = Debug.log "RStart" pos
+            in
+            ({model | start = Just pos}, Cmd.none)
+        RMove pos ->
+            let
+                dir = Debug.log "" <| case model.start of
+                                          Just from -> { x = pos.y - from.y
+                                                       , y = pos.x - from.x
+                                                       }
+                                          -- Just from -> { x = -pos.y + from.y
+                                          --              , y = pos.x - from.x
+                                          --              }
+                                          Nothing -> {x=1,y=0}
+                axis = Maybe.withDefault Axis3d.x <|
+                       Axis3d.throughPoints
+                           Point3d.origin
+                           (Point3d.meters  0 dir.x dir.y )
+                angle = Angle.degrees  (0.5*(sqrt (dir.x^2 + dir.y^2)))
+                points = List.map (\v -> Point3d.rotateAround
+                                           axis angle v
+                                    ) model.points
+            in
+            ({model | start = case model.start of
+                                  Just drom -> Just pos
+                                  Nothing -> Nothing
+             ,points = case model.start of
+                             Just from ->  points
+                             Nothing -> model.points
+             }
+            , Cmd.none)
+        REnd pos ->
+            let
+                dummy = Debug.log "REnd" pos
+                newModel = {model|start = Nothing}
+            in
+                (newModel, Cmd.none)
         Elapsed t -> --(model, Cmd.none)
             --({model | tourLength = modBy 192 (model.tourLength+1)}, Cmd.none)
-                    ({model | afterClick = (model.afterClick+1)}, Cmd.none)
+                    (model, Cmd.none)
         Forward ->
-            if (model.afterClick < 2) then
-                ({model | tourLength = modBy 192 (model.tourLength-2)}, Cmd.none)
-            else
-                ({model | tourLength = modBy 192 (model.tourLength+1), afterClick = 0}, Cmd.none)
+            let
+                findVisited idx =
+                    let
+                        appeared = List.map (\e -> e.from ) <| List.take idx eulerCycle
+                        edge = Maybe.withDefault {from=-1,to=-1} <| List.head <| List.drop idx eulerCycle
+                        end = edge.to
+                    in
+                        if (List.member end appeared) then
+                            idx
+                        else
+                            findVisited (idx+1)
+            in
+                --({model | tourLength = modBy 192 (model.tourLength+1)}, Cmd.none)
+                ({model | tourLength = ((findVisited model.tourLength)+1)}, Cmd.none)
+        Backward ->
+            ({model | tourLength = modBy 192 (model.tourLength-1)}, Cmd.none)
 
 
 view: Model -> Html Msg
@@ -71,51 +130,62 @@ view model =
                 { baseColor = Color.red
                 , roughness = 0.4 -- varies from 0 (mirror-like) to 1 (matte)
                 }
+        yellowMaterial =
+            Material.metal
+                { baseColor = Color.yellow
+                , roughness = 0.4 -- varies from 0 (mirror-like) to 1 (matte)
+                }
+
         blackMaterial =
             Material.nonmetal
                 { baseColor = Color.black
                 , roughness = 0.4 -- varies from 0 (mirror-like) to 1 (matte)
                 }
-        sphereView center =
-            Scene3d.sphere material <|
-                Sphere3d.withRadius (Length.meters 0.1) (Point3d.meters center.x center.y center.z)
+        sphereView center mat =
+            Scene3d.sphere mat <|
+                --Sphere3d.withRadius (Length.meters 0.1) (Point3d.meters center.x center.y center.z)
+                Sphere3d.withRadius (Length.meters 0.1) center
 
         spheres =
-            List.map sphereView model.points
-
+            List.indexedMap (\idx pt -> if (idx==0 ) then
+                                            sphereView pt yellowMaterial
+                                        else if (idx==5) then
+                                            sphereView pt blackMaterial
+                                             else
+                                                 sphereView pt material
+                            ) model.points
         point p =
             Point3d.meters p.x p.y p.z
 
         dist p q =
-            sqrt ((p.x - q.x)^2 + (p.y - q.y)^2 + (p.z - q.z)^2 )
+            Point3d.distanceFrom p q
 
         vertex i =
-            Maybe.withDefault {x=0,y=0,z=0} <|
-                --List.head <| List.drop (i-1) model.points
+            Maybe.withDefault (Point3d.meters 0 0 0) <|
                 List.head <| List.drop i model.points
                 
         edge edata =
             Scene3d.cylinderWithShadow material <|
                 Cylinder3d.startingAt 
-                    (point <| vertex edata.from)
+                    (vertex edata.from)
                     (Maybe.withDefault Direction3d.x <|
-                         (Direction3d.from (point <| vertex edata.from) (point <| vertex edata.to)))
-                    {radius = Length.meters 0.05
-                    ,length = Length.meters (dist (vertex edata.from) (vertex edata.to))
+                         (Direction3d.from (vertex edata.from) (vertex edata.to)))
+                    {radius = Length.meters 0.025
+                    ,length = (dist (vertex edata.from) (vertex edata.to))
                     }
 
         cover edata =
             Scene3d.cylinderWithShadow redMaterial <|
                 Cylinder3d.startingAt 
-                    (point <| vertex edata.from)
+                    (vertex edata.from)
                     (Maybe.withDefault Direction3d.x <|
-                         (Direction3d.from (point <| vertex edata.from) (point <| vertex edata.to)))
+                         (Direction3d.from (vertex edata.from) (vertex edata.to)))
                     {radius = Length.meters 0.06
-                    ,length = Length.meters (dist (vertex edata.from) (vertex edata.to))
+                    ,length = (dist (vertex edata.from) (vertex edata.to))
                     }
                     
         edges = (List.map edge model.eulerCycle) ++
-                (List.map cover (List.take model.tourLength model.eulerCycle))
+                (List.map cover ((List.take (model.tourLength)) model.eulerCycle))
             
                 
         camera =
@@ -123,14 +193,17 @@ view model =
                 { viewpoint =
                     Viewpoint3d.lookAt
                         { focalPoint = Point3d.origin
-                        , eyePoint = Point3d.meters 10 12 10
+                        , eyePoint = Point3d.meters 10 0 5
                         , upDirection = Direction3d.positiveZ
                         }
-                , verticalFieldOfView = Angle.degrees 30
+                , verticalFieldOfView = Angle.degrees 40
                 }
-        current = Maybe.withDefault {from=0,to=0} <| List.head (List.drop (model.tourLength) model.eulerCycle)
+        current = Maybe.withDefault {from=0,to=0} <| List.head (List.drop (model.tourLength-1) model.eulerCycle)
     in
-    Html.div[Evts.onClick Forward]
+    Html.div[Pointer.onDown (\ev-> RStart (relativePosition ev))
+            ,Pointer.onUp (\ev-> REnd (relativePosition ev))
+            ,Pointer.onMove (\ev-> RMove (relativePosition ev))
+            ]
         [
          {-Html.input
             [ Attrs.type_ "range"
@@ -143,6 +216,8 @@ view model =
                                     (String.fromInt current.from)++"-->"++
                                     (String.fromInt current.to)
                                )]
+        ,Html.button [Evts.onClick Forward] [Html.text "+"]
+        ,Html.button [Evts.onClick Backward] [Html.text "-"]
         ,Scene3d.sunny
              { camera = camera
              , clipDepth = Length.meters 0.05
@@ -155,6 +230,11 @@ view model =
              }
         ]
 
+
+relativePosition ev =
+    {x= Tuple.first ev.pointer.offsetPos
+    ,y= Tuple.second ev.pointer.offsetPos
+    }
         
 pointCoords = [{x=0,y=0,z=1},
                    {x=1,y=0,z=0},
