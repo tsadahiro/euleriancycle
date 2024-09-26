@@ -8269,6 +8269,7 @@ var $avh4$elm_color$Color$RgbaSpace = F4(
 		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
 	});
 var $avh4$elm_color$Color$black = A4($avh4$elm_color$Color$RgbaSpace, 0 / 255, 0 / 255, 0 / 255, 1.0);
+var $avh4$elm_color$Color$blue = A4($avh4$elm_color$Color$RgbaSpace, 52 / 255, 101 / 255, 164 / 255, 1.0);
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $ianmackenzie$elm_geometry$Cylinder3d$axis = function (_v0) {
 	var cylinder = _v0.a;
@@ -11378,7 +11379,6 @@ var $ianmackenzie$elm_3d_camera$Camera3d$perspective = function (_arguments) {
 			viewpoint: _arguments.viewpoint
 		});
 };
-var $avh4$elm_color$Color$red = A4($avh4$elm_color$Color$RgbaSpace, 204 / 255, 0 / 255, 0 / 255, 1.0);
 var $elm$core$Tuple$second = function (_v0) {
 	var y = _v0.b;
 	return y;
@@ -13102,6 +13102,7 @@ var $avh4$elm_color$Color$rgba = F4(
 	});
 var $ianmackenzie$elm_3d_scene$Scene3d$transparentBackground = $ianmackenzie$elm_3d_scene$Scene3d$backgroundColor(
 	A4($avh4$elm_color$Color$rgba, 0, 0, 0, 0));
+var $avh4$elm_color$Color$white = A4($avh4$elm_color$Color$RgbaSpace, 255 / 255, 255 / 255, 255 / 255, 1.0);
 var $ianmackenzie$elm_geometry$Geometry$Types$Sphere3d = function (a) {
 	return {$: 'Sphere3d', a: a};
 };
@@ -13144,7 +13145,7 @@ var $author$project$Loop2$view = function (model) {
 					center));
 		});
 	var redMaterial = $ianmackenzie$elm_3d_scene$Scene3d$Material$nonmetal(
-		{baseColor: $avh4$elm_color$Color$red, roughness: 0.4});
+		{baseColor: $avh4$elm_color$Color$white, roughness: 0.4});
 	var point = function (p) {
 		return A3($ianmackenzie$elm_geometry$Point3d$meters, p.x, p.y, p.z);
 	};
@@ -13219,15 +13220,25 @@ var $author$project$Loop2$view = function (model) {
 					upDirection: $ianmackenzie$elm_geometry$Direction3d$positiveZ
 				})
 		});
+	var blueMaterial = $ianmackenzie$elm_3d_scene$Scene3d$Material$metal(
+		{baseColor: $avh4$elm_color$Color$blue, roughness: 0.4});
 	var blackMaterial = $ianmackenzie$elm_3d_scene$Scene3d$Material$nonmetal(
 		{baseColor: $avh4$elm_color$Color$black, roughness: 0.4});
-	var spheres = A2(
-		$elm$core$List$indexedMap,
-		F2(
-			function (idx, pt) {
-				return (!idx) ? A2(sphereView, pt, yellowMaterial) : ((idx === 5) ? A2(sphereView, pt, blackMaterial) : A2(sphereView, pt, material));
-			}),
-		model.points);
+	var spheres = function () {
+		var head = (!model.tourLength) ? {from: -1, to: 0} : A2(
+			$elm$core$Maybe$withDefault,
+			{from: -1, to: -1},
+			$elm$core$List$head(
+				A2($elm$core$List$drop, model.tourLength - 1, model.eulerCycle)));
+		var to = head.to;
+		return A2(
+			$elm$core$List$indexedMap,
+			F2(
+				function (idx, pt) {
+					return (!idx) ? A2(sphereView, pt, yellowMaterial) : ((idx === 5) ? A2(sphereView, pt, blackMaterial) : (_Utils_eq(idx, to) ? A2(sphereView, pt, blueMaterial) : A2(sphereView, pt, material)));
+				}),
+			model.points);
+	}();
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(

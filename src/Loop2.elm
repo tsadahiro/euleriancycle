@@ -127,12 +127,17 @@ view model =
                 }
         redMaterial =
             Material.nonmetal
-                { baseColor = Color.red
+                { baseColor = Color.white
                 , roughness = 0.4 -- varies from 0 (mirror-like) to 1 (matte)
                 }
         yellowMaterial =
             Material.metal
                 { baseColor = Color.yellow
+                , roughness = 0.4 -- varies from 0 (mirror-like) to 1 (matte)
+                }
+        blueMaterial =
+            Material.metal
+                { baseColor = Color.blue
                 , roughness = 0.4 -- varies from 0 (mirror-like) to 1 (matte)
                 }
 
@@ -147,12 +152,22 @@ view model =
                 Sphere3d.withRadius (Length.meters 0.1) center
 
         spheres =
-            List.indexedMap (\idx pt -> if (idx==0 ) then
-                                            sphereView pt yellowMaterial
-                                        else if (idx==5) then
-                                            sphereView pt blackMaterial
-                                             else
-                                                 sphereView pt material
+            let
+                head = if (model.tourLength == 0) then
+                           {from=-1, to=0}
+                       else
+                           Maybe.withDefault {from=-1, to = -1} <|
+                               List.head <| List.drop (model.tourLength-1) model.eulerCycle
+                to = head.to
+            in
+                List.indexedMap (\idx pt -> if (idx == 0) then
+                                                sphereView pt yellowMaterial
+                                            else if (idx == 5) then
+                                                     sphereView pt blackMaterial
+                                                 else if (idx == to ) then
+                                                          sphereView pt blueMaterial
+                                                      else
+                                                      sphereView pt material
                             ) model.points
         point p =
             Point3d.meters p.x p.y p.z
